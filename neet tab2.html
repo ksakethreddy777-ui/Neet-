@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>NEET Quiz Pro</title>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+  font-family: Arial;
+  background:#e0ffff;
+  padding:20px;
+  scroll-behavior:smooth;
+}
+
+/* BUTTONS */
+button {
+  padding:12px 20px;
+  margin:6px;
+  border:none;
+  border-radius:30px;
+  background:linear-gradient(135deg, #40e0d0, #20b2aa);
+  color:white;
+  cursor:pointer;
+  transition:0.2s;
+}
+button:active {
+  transform: scale(0.95);
+}
+
+/* OPTIONS */
+.option {
+  padding:14px;
+  margin:10px 0;
+  border-radius:15px;
+  background:#dff;
+  display:flex;
+  align-items:center;
+  cursor:pointer;
+  transition:0.2s;
+}
+.option:active {
+  transform: scale(0.97);
+  background:#c8f7f7;
+}
+
+.selected {
+  background:#a0ffff;
+  transform:scale(1.03);
+}
+
+.circle {
+  width:20px;
+  height:20px;
+  border-radius:50%;
+  border:2px solid black;
+  margin-right:10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.circle span {
+  transform:scale(0);
+  transition:0.2s;
+}
+.selected .circle span {
+  transform:scale(1.2);
+}
+
+.correct { background:#90ee90 !important; }
+.wrong { background:#ff7f7f !important; }
+
+/* STATUS GRID */
+.grid {
+  display:grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap:5px;
+  margin-bottom:15px;
+}
+.box {
+  padding:8px;
+  text-align:center;
+  border-radius:5px;
+  background:white;
+}
+.green { background:#00cc66; }
+.red { background:#ff4d4d; }
+
+</style>
+</head>
+
+<body>
+
+<h2>🧬 NEET Quiz</h2>
+
+<div id="home">
+<input id="subject" placeholder="Enter Subject"><br><br>
+<textarea id="input" style="width:100%;height:150px;" placeholder="Paste questions here..."></textarea><br>
+
+<button onclick="startQuiz()">🚀 Start</button>
+<button onclick="showHistory()">📜 History</button>
+</div>
+
+<div id="quiz"></div>
+<div id="result"></div>
+<div id="history"></div>
+
+<script>
+let questions=[],answers=[],user=[];
+let current=0;
+let subject="";
+
+function goHome(){ location.reload(); }
+
+function startQuiz(){
+subject=document.getElementById("subject").value||"Unknown";
+let lines=document.getElementById("input").value.split("\n");
+
+questions=[];answers=[];user=[];
+
+let i=0;
+while(i<lines.length){
+ if(lines[i].startsWith("Q")){
+  let opts=[],correct="";
+  for(let j=1;j<=4;j++){
+    let l=lines[i+j];
+    if(!l) continue;
+    if(l.startsWith("*")){correct=l[1];opts.push(l.slice(3));}
+    else opts.push(l.slice(2));
+  }
+  if(opts.length===4){
+    questions.push({q:lines[i],opts});
+    answers.push(correct);
+    user.push(null);
+  }
+  i+=5;
+ } else i++;
+}
+
+if(questions.length===0){
+  alert("Bro your format is wrong 😑");
+  return;
+}
+
+document.getElementById("home").style.display="none";
+renderQ();
+}
+
+function renderQ(){
+let q=questions[current];
+
+let html=`<button onclick="goHome()">🏠 Home</button>
+<h3>${q.q}</h3>`;
+
+q.opts.forEach((opt,i)=>{
+ let l=["A","B","C","D"][i];
+ let selected=user[current]===l;
+
+ html+=`
+ <div class="option ${selected?"selected":""}" ontouchstart="select('${l}')" onclick="select('${l}')">
+   <div class="circle">${selected?"<span>✔</span>":"<span></span>"}</div>
+   ${l}) ${opt}
+ </div>`;
+});
+
+html+=`
+<button onclick="prev()">⬅️</button>
+<button onclick="next()">➡️</button>
+<button onclick="submitQuiz()">✅ Submit</button>
+`;
+
+document.getElementById("quiz").innerHTML=html;
+}
+
+function select(a){
+user[current]=a;
+renderQ();
+}
+
+function next(){ if(current<questions.length-1){current++;renderQ();}}
+function prev(){ if(current>0){current--;renderQ();}}
+
+function submitQuiz(){
+
+let gridHTML="<div class='grid'>";
+
+questions.forEach((q,i)=>{
+ let cls="";
+ if(user[i]){
+   if(user[i]===answers[i]) cls="green";
+   else cls="red";
+ }
+ gridHTML+=`<div class="box ${cls}">${i+1}</div>`;
+});
+
+gridHTML+="</div>";
+
+let attempted=user.filter(x=>x).length;
+let correct=user.filter((x,i)=>x===answers[i]).length;
+let wrong=attempted-correct;
+let score=correct*4-wrong;
+
+saveHistory({subject,score,total:questions.length,date:new Date().toLocaleString(),questions,answers,user});
+
+let html=`<button onclick="goHome()">🏠 Home</button>
+<h2>Result 🎯</h2>
+<p>Score: ${score}</p>
+${gridHTML}
+<hr>`;
+
+questions.forEach((q,i)=>{
+ html+=`<p><b>${q.q}</b></p>`;
+ q.opts.forEach((opt,j)=>{
+  let l=["A","B","C","D"][j];
+  let cls="";
+  let emoji="";
+
+  if(l===answers[i]) cls="correct";
+  if(l===user[i] && l!==answers[i]) {cls="wrong"; emoji=" ❌";}
+  if(l===user[i] && l===answers[i]) emoji=" ✅";
+
+  html+=`<div class="option ${cls}">
+  ${l}) ${opt} ${emoji}
+  </div>`;
+ });
+ html+=`<hr>`;
+});
+
+document.getElementById("quiz").innerHTML="";
+document.getElementById("result").innerHTML=html;
+}
+
+function saveHistory(test){
+let data=JSON.parse(localStorage.getItem("neetTests")||"[]");
+data.unshift(test);
+localStorage.setItem("neetTests",JSON.stringify(data));
+}
+
+function showHistory(){
+document.getElementById("home").style.display="none";
+
+let data=JSON.parse(localStorage.getItem("neetTests")||"[]");
+
+let html=`<button onclick="goHome()">🏠 Home</button>
+<h2>📜 History</h2>
+<button onclick="resetHistory()">🧹 Reset</button>
+`;
+
+data.forEach((t,i)=>{
+ html+=`
+ <div style="border:1px solid #000;padding:10px;margin:10px;">
+ <b>${t.subject}</b> | ${t.total} Q | Score: ${t.score}<br>
+ ${t.date}<br>
+ <button onclick="viewTest(${i})">View</button>
+ </div>`;
+});
+
+document.getElementById("history").innerHTML=html;
+}
+
+function resetHistory(){
+localStorage.removeItem("neetTests");
+alert("History Cleared!");
+location.reload();
+}
+
+function viewTest(i){
+let data=JSON.parse(localStorage.getItem("neetTests"));
+let t=data[i];
+
+let html=`<button onclick="goHome()">🏠 Home</button>
+<h2>${t.subject}</h2><p>Score: ${t.score}</p><hr>`;
+
+t.questions.forEach((q,j)=>{
+ html+=`<p><b>${q.q}</b></p>`;
+ q.opts.forEach((opt,k)=>{
+  let l=["A","B","C","D"][k];
+  let cls="";
+  if(l===t.answers[j]) cls="correct";
+  else if(l===t.user[j]) cls="wrong";
+  html+=`<div class="option ${cls}">${l}) ${opt}</div>`;
+ });
+ html+=`<hr>`;
+});
+
+document.getElementById("history").innerHTML=html;
+}
+</script>
+
+</body>
+</html>
